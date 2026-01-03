@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pelacak Peternakan Lengkap</title>
+<style>
+:root {
+  --bg-light: linear-gradient(135deg,#d4f1c5,#a0e3b0);
+  --bg-dark: #121212;
+  --text-light: #333;
+  --text-dark: #f0f0f0;
+  --form-light: rgba(255,255,255,0.9);
+  --form-dark: rgba(30,30,30,0.95);
+  --profit: green;
+  --loss: red;
+  --warning-bg: #fff3cd;
+  --warning-color: #856404;
+  --colors: #cce5ff,#d4edda,#fff3cd,#f8d7da,#e2e3e5;
+}
+body { font-family: Arial,sans-serif; margin:20px; background:var(--bg-light) repeat; color:var(--text-light); transition:all 0.3s ease;}
+body.dark { background:var(--bg-dark); color:var(--text-dark);}
+h1,h2{text-align:center;}
+form { background:var(--form-light); padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 0 10px rgba(0,0,0,0.1); transition:all 0.3s ease; }
+body.dark form { background:var(--form-dark);}
+input,select,button { width:100%; padding:8px; margin:6px 0; }
+button { background:#28a745; color:white; border:none; cursor:pointer; }
+button.delete { background:#dc3545; }
+ul { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:10px;}
+li { background:var(--form-light); margin:6px 0; padding:10px; border-radius:5px; box-shadow:0 0 5px rgba(0,0,0,0.1); transition:all 0.3s ease; width:250px; }
+body.dark li { background:var(--form-dark);}
+.profit { color:var(--profit); font-weight:bold; }
+.loss { color:var(--loss); font-weight:bold; }
+.warning { background:var(--warning-bg); color:var(--warning-color); padding:5px; border-radius:4px; margin-bottom:5px; }
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
+.modal-content { background:#fff; padding:20px; border-radius:8px; width:300px; position:relative; transition:all 0.3s ease; }
+body.dark .modal-content { background:#333; color:#f0f0f0; }
+.modal-content h3 { text-align:center; margin-top:0; }
+.modal-content input { width:100%; margin:10px 0; padding:8px; }
+.modal-content button { width:48%; margin:5px 1%; }
+.close { position:absolute; top:5px; right:10px; cursor:pointer; font-weight:bold; }
+canvas { background:#fff; border-radius:8px; padding:10px; margin-top:20px; transition:all 0.3s ease;}
+body.dark canvas { background:#222; }
+img { max-width:100%; display:block; margin-bottom:5px; }
+.weight-history { font-size:12px; margin-top:5px; max-height:100px; overflow-y:auto;}
+</style>
+</head>
+<body>
+
+<h1>Pelacak Peternakan Lengkap</h1>
+<button id="dark-mode-toggle">Mode Gelap</button>
+<button id="reset-data">Reset Semua Data</button>
+
+<h2>Tambah Pengeluaran</h2>
+<form id="expense-form">
+<select id="exp-category" required>
+<option value="">Pilih Kategori</option>
+<option>Pakan Sapi</option>
+<option>Perawatan Kandang</option>
+<option>Obat Ternak</option>
+<option>Lainnya</option>
+</select>
+<input id="exp-amount" placeholder="Jumlah (Rp)" required>
+<input type="date" id="exp-date" required>
+<button type="submit">Tambah Pengeluaran</button>
+</form>
+
+<h2>Tambah Ternak</h2>
+<form id="cattle-form">
+<input id="cattle-id" placeholder="ID / Nama Sapi" required>
+<input type="file" id="cattle-photo" accept="image/*">
+<input type="date" id="entry-date" required>
+<input id="buy-price" placeholder="Harga Beli (Rp)" required>
+<button type="submit">Tambah Ternak</button>
+</form>
+
+<h2>Daftar Ternak</h2>
+<input id="search-cattle" placeholder="Cari Sapi by ID/Nama">
+<ul id="cattle-list"></ul>
+
+<h2>Filter Laporan Bulanan</h2>
+<select id="filter-category">
+<option value="">Semua Kategori</option>
+<option>Pakan Sapi</option>
+<option>Perawatan Kandang</option>
+<option>Obat Ternak</option>
+<option>Lainnya</option>
+</select>
+<button onclick="renderMonthlyChart()">Terapkan Filter</button>
+
+<h2>Laporan Bulanan</h2>
+<button onclick="downloadMonthlyReport()">Download CSV</button>
+<button onclick="window.print()">Download / Print PDF</button>
+<canvas id="monthlyChart" width="400" height="200"></canvas>
+
+<!-- MODAL JUAL -->
+<div class="modal" id="sell-modal">
+  <div class="modal-content">
+    <span class="close" id="modal-close">&times;</span>
+    <h3>Jual Sapi</h3>
+    <label>Harga Jual (Rp)</label>
+    <input type="text" id="sell-price-input" placeholder="6,000,000">
+    <label>Tanggal Keluar</label>
+    <input type="date" id="sell-date-input">
+    <div style="text-align:center;">
+      <button id="sell-confirm">Jual</button>
+      <button id="sell-cancel">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL BERAT BADAN -->
+<div class="modal" id="weight-modal">
+  <div class="modal-content">
+    <span class="close" id="weight-close">&times;</span>
+    <h3>Tambah Berat Badan</h3>
+    <input type="date" id="weight-date-input" required>
+    <input id="weight-input" placeholder="Berat (kg)" required>
+    <div style="text-align:center;">
+      <button id="weight-confirm">Tambah</button>
+      <button id="weight-cancel">Batal</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+let cattle = JSON.parse(localStorage.getItem('cattle')) || [];
+let currentSellIndex = null;
+let currentWeightIndex = null;
+
+const rupiah = n => typeof n==='number'&&!isNaN(n)?n.toLocaleString('id-ID'):'0';
+
+function currencyInput(id){
+    document.getElementById(id).addEventListener('input', function(){
+        let value = this.value.replace(/[^0-9]/g,'');
+        if(value) this.value = rupiah(parseInt(value));
+        else this.value = '';
+    });
+}
+currencyInput('exp-amount'); currencyInput('buy-price'); currencyInput('sell-price-input'); currencyInput('weight-input');
+
+function today(id){ document.getElementById(id).value = new Date().toISOString().split('T')[0]; }
+today('exp-date'); today('entry-date'); today('weight-date-input'); today('sell-date-input');
+
+function calculateExpensesPerCow(cow) {
+    const categories = { 'Pakan Sapi': 0, 'Perawatan Kandang': 0, 'Obat Ternak': 0, 'Lainnya': 0 };
+    const entry = new Date(cow.entryDate);
+    const exit  = cow.exitDate ? new Date(cow.exitDate) : new Date();
+    
+    expenses.forEach(e => {
+        const d = new Date(e.date);
+        if(d >= entry && d <= exit && categories.hasOwnProperty(e.category)) {
+            const activeCows = cattle.filter(c => {
+                const inDate = new Date(c.entryDate);
+                const outDate = c.exitDate ? new Date(c.exitDate) : new Date();
+                return d >= inDate && d <= outDate;
+            }).length;
+            if(activeCows > 0) categories[e.category] += e.amount / activeCows;
+        }
+    });
+    return categories;
+}
+
+function renderCattle(filter=''){
+    const list = document.getElementById('cattle-list');
+    list.innerHTML='';
+    const colors = getComputedStyle(document.documentElement).getPropertyValue('--colors').split(',');
+
+    cattle.filter(c=>c.id.toLowerCase().includes(filter.toLowerCase())).forEach((c,i)=>{
+        const color = colors[i % colors.length];
+        let html = '';
+        if(c.photo) html += `<img src="${c.photo}">`;
+        html += `<strong>${c.id}</strong><br>Masuk: ${c.entryDate}<br>Beli: Rp ${rupiah(c.buyPrice)}<br>`;
+
+        // History berat
+        if(c.weightHistory && c.weightHistory.length>0){
+            html += '<div class="weight-history"><strong>History Berat (kg):</strong><br>';
+            c.weightHistory.forEach(w=>{
+                html += `${w.date}: ${w.weight}kg<br>`;
+            });
+            html += '</div>';
+        }
+
+        // Pengeluaran per sapi
+        const expPerCow = calculateExpensesPerCow(c);
+        html += '<div style="font-size:12px;margin-top:5px;">';
+        html += `Pakan: Rp ${rupiah(expPerCow['Pakan Sapi'])}<br>`;
+        html += `Perawatan: Rp ${rupiah(expPerCow['Perawatan Kandang'])}<br>`;
+        html += `Obat: Rp ${rupiah(expPerCow['Obat Ternak'])}<br>`;
+        html += `Lainnya: Rp ${rupiah(expPerCow['Lainnya'])}<br>`;
+        html += '</div>';
+
+        if(c.exitDate){
+            const totalExp = Object.values(expPerCow).reduce((a,b)=>a+b,0);
+            const profit = c.sellPrice - c.buyPrice - totalExp;
+            html += `Keluar: ${c.exitDate}<br>Jual: Rp ${rupiah(c.sellPrice)}<br>`;
+            html += `<span class="${profit>=0?'profit':'loss'}">${profit>=0?'Untung':'Rugi'}: Rp ${rupiah(Math.abs(profit))}</span><br>`;
+            html += `<button class="delete" onclick="deleteCattle(${i})">Hapus</button>`;
+        } else {
+            html += `<button onclick="openWeightModal(${i})">Tambah Bobot</button> `;
+            html += `<button onclick="openSellModal(${i})">Jual / Keluar</button>`;
+        }
+
+        const li = document.createElement('li');
+        li.style.background=color;
+        li.innerHTML = html;
+        list.appendChild(li);
+    });
+}
+
+// MODAL JUAL
+const sellModal = document.getElementById('sell-modal');
+const modalClose = document.getElementById('modal-close');
+const sellCancel = document.getElementById('sell-cancel');
+const sellConfirm = document.getElementById('sell-confirm');
+
+function openSellModal(i){
+    currentSellIndex = i;
+    document.getElementById('sell-price-input').value='';
+    document.getElementById('sell-date-input').value=new Date().toISOString().split('T')[0];
+    sellModal.style.display='flex';
+}
+modalClose.onclick = sellCancel.onclick = ()=>{ sellModal.style.display='none'; }
+sellConfirm.onclick = ()=>{
+    const priceInput = document.getElementById('sell-price-input').value;
+    const sellPrice = parseInt(priceInput.replace(/[^0-9]/g,''));
+    const sellDate = document.getElementById('sell-date-input').value;
+    if(!sellPrice||!sellDate) return alert('Harga jual dan tanggal keluar harus diisi');
+    const cow = cattle[currentSellIndex];
+    cow.sellPrice = sellPrice;
+    cow.exitDate = sellDate;
+    localStorage.setItem('cattle',JSON.stringify(cattle));
+    sellModal.style.display='none';
+    renderCattle(document.getElementById('search-cattle').value);
+};
+
+// MODAL BERAT BADAN
+const weightModal = document.getElementById('weight-modal');
+const weightClose = document.getElementById('weight-close');
+const weightCancel = document.getElementById('weight-cancel');
+const weightConfirm = document.getElementById('weight-confirm');
+
+function openWeightModal(i){
+    currentWeightIndex = i;
+    document.getElementById('weight-input').value='';
+    document.getElementById('weight-date-input').value=new Date().toISOString().split('T')[0];
+    weightModal.style.display='flex';
+}
+weightClose.onclick = weightCancel.onclick = ()=>{ weightModal.style.display='none'; }
+weightConfirm.onclick = ()=>{
+    const cow = cattle[currentWeightIndex];
+    const wDate = document.getElementById('weight-date-input').value;
+    const wValue = parseInt(document.getElementById('weight-input').value.replace(/[^0-9]/g,''));
+    if(!wDate||!wValue) return alert('Tanggal dan berat harus diisi');
+    if(!cow.weightHistory) cow.weightHistory=[];
+    cow.weightHistory.push({date:wDate,weight:wValue});
+    localStorage.setItem('cattle',JSON.stringify(cattle));
+    weightModal.style.display='none';
+    renderCattle(document.getElementById('search-cattle').value);
+};
+
+// FORM SUBMIT
+document.getElementById('expense-form').onsubmit = e=>{
+    e.preventDefault();
+    const category=document.getElementById('exp-category').value;
+    const amount=parseInt(document.getElementById('exp-amount').value.replace(/[^0-9]/g,''));
+    const date=document.getElementById('exp-date').value;
+    expenses.push({category,amount,date});
+    localStorage.setItem('expenses',JSON.stringify(expenses));
+    renderCattle(document.getElementById('search-cattle').value);
+};
+
+document.getElementById('cattle-form').onsubmit = e=>{
+    e.preventDefault();
+    const id=document.getElementById('cattle-id').value;
+    const entryDate=document.getElementById('entry-date').value;
+    const buyPrice=parseInt(document.getElementById('buy-price').value.replace(/[^0-9]/g,''));
+    const file = document.getElementById('cattle-photo').files[0];
+    if(file){
+        const reader = new FileReader();
+        reader.onload = function(e){
+            cattle.push({id,entryDate,buyPrice,photo:e.target.result,weightHistory:[]});
+            localStorage.setItem('cattle',JSON.stringify(cattle));
+            renderCattle(document.getElementById('search-cattle').value);
+        }
+        reader.readAsDataURL(file);
+    } else {
+        cattle.push({id,entryDate,buyPrice,weightHistory:[]});
+        localStorage.setItem('cattle',JSON.stringify(cattle));
+        renderCattle(document.getElementById('search-cattle').value);
+    }
+};
+
+document.getElementById('search-cattle').oninput = e=> renderCattle(e.target.value);
+
+document.getElementById('dark-mode-toggle').onclick = ()=>{ document.body.classList.toggle('dark'); };
+document.getElementById('reset-data').onclick = ()=>{ 
+    if(confirm('Reset semua data?')){ 
+        localStorage.clear(); 
+        location.reload();
+    }
+};
+
+// GRAFIK
+let chartInstance=null;
+function getMonthlyData(){
+    const data={};
+    const filter=document.getElementById('filter-category').value;
+    expenses.forEach(e=>{
+        if(filter && e.category!==filter) return;
+        const m=e.date.slice(0,7);
+        if(!data[m]) data[m]={pengeluaran:0,profit:null};
+        data[m].pengeluaran+=e.amount;
+    });
+    cattle.forEach(c=>{
+        if(c.exitDate){
+            const m=c.exitDate.slice(0,7);
+            if(!data[m]) data[m]={pengeluaran:0,profit:null};
+            const expPerCow = calculateExpensesPerCow(c);
+            const profit = c.sellPrice - c.buyPrice - Object.values(expPerCow).reduce((a,b)=>a+b,0);
+            data[m].profit = (data[m].profit||0)+profit;
+        }
+    });
+    return data;
+}
+
+function renderMonthlyChart(){
+    const monthly = getMonthlyData();
+    const labels=Object.keys(monthly).sort();
+    const pengeluaran=labels.map(l=>monthly[l].pengeluaran||0);
+    const profit=labels.map(l=>monthly[l].profit||0);
+    const background=labels.map(l=>monthly[l].profit>=0?'rgba(54,162,235,0.6)':'rgba(255,99,132,0.6)');
+
+    const ctx=document.getElementById('monthlyChart').getContext('2d');
+    if(chartInstance) chartInstance.destroy();
+    chartInstance=new Chart(ctx,{
+        type:'bar',
+        data:{
+            labels,
+            datasets:[
+                {label:'Pengeluaran', data:pengeluaran, backgroundColor:'rgba(255,206,86,0.6)'},
+                {label:'Profit/Rugi', data:profit, backgroundColor:background}
+            ]
+        },
+        options:{ responsive:true }
+    });
+}
+
+function downloadMonthlyReport(){
+    const data = getMonthlyData();
+    let csv = 'Bulan,Pengeluaran,Profit\n';
+    Object.keys(data).sort().forEach(m=>{
+        const d=data[m];
+        csv+=`${m},${d.pengeluaran||0},${d.profit||0}\n`;
+    });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a=document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'laporan-bulanan.csv';
+    a.click();
+}
+
+// HAPUS TERNAK
+function deleteCattle(i){
+    if(confirm('Hapus sapi ini?')){
+        cattle.splice(i,1);
+        localStorage.setItem('cattle',JSON.stringify(cattle));
+        renderCattle();
+    }
+}
+
+// INIT
+renderCattle();
+renderMonthlyChart();
+</script>
+
+</body>
+</html>

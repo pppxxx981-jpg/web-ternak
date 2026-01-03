@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XPROMILK – Sistem Peternakan</title>
+
+<style>
+html, body{
+  margin:0;
+  padding:0;
+  height:100%;
+  font-family: Arial, sans-serif;
+  color:#333;
+  overflow-y: auto; /* bisa scroll */
+  background: #e0f7fa;
+}
+
+/* VIDEO BACKGROUND */
+#bg-video {
+  position: fixed;
+  right:0;
+  bottom:0;
+  min-width:100%;
+  min-height:100%;
+  z-index:-1;
+  object-fit:cover;
+  filter: brightness(0.6);
+}
+
+/* overlay untuk teks */
+.overlay {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding:40px 20px;
+}
+
+/* HEADER */
+header{
+  text-align:center;
+  margin-bottom:30px;
+}
+
+h1{color:#2e7d32;}
+h2{text-align:center;}
+
+/* BOX STYLING */
+.box{
+  background: linear-gradient(145deg, #fff3e0, #ffe0b2); /* soft gradasi */
+  padding:25px;
+  border-radius:15px;
+  box-shadow:0 6px 15px rgba(0,0,0,0.25);
+  margin-bottom:25px;
+  max-width:550px;
+  width:100%;
+  transition: transform 0.3s ease;
+}
+.box:hover{
+  transform: translateY(-5px);
+}
+
+/* INPUT & BUTTON */
+input{
+  width:100%;
+  padding:12px;
+  margin:12px 0;
+  font-size:16px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+button{
+  padding:12px 25px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:#2e7d32;
+  color:white;
+  font-size:16px;
+  transition: background 0.3s ease;
+}
+button:hover{background:#1b5e20;}
+
+/* ADMIN HELP */
+.admin-help{
+  display:flex;
+  align-items:center;
+  gap:15px;
+  background:#ff9800;
+  color:white;
+  padding:12px 18px;
+  border-radius:10px;
+  cursor:pointer;
+  width:max-content;
+}
+.admin-help img{
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  border:2px solid white;
+}
+
+/* NOTIFIKASI */
+#notif{
+  margin-top:10px;
+  padding:12px;
+  border-radius:8px;
+  display:none;
+  font-weight:bold;
+  text-align:center;
+}
+#notif.success{background:#c8e6c9; color:#2e7d32;}
+#notif.error{background:#ffcdd2; color:#c62828;}
+
+footer{
+  text-align:center;
+  font-size:12px;
+  color:#fff;
+  margin-top:30px;
+  text-shadow: 0 0 5px #000;
+}
+
+ul li{margin-bottom:8px;}
+</style>
+</head>
+
+<body>
+
+<!-- VIDEO BACKGROUND -->
+<video autoplay muted loop id="bg-video">
+  <source src="sapix.mp4" type="video/mp4">
+  Browser Anda tidak mendukung video background.
+</video>
+
+<div class="overlay">
+<header>
+  <h1>XPROMILK</h1>
+  <p>Sistem Pencatatan & Pengelolaan Peternakan</p>
+</header>
+
+<!-- LOGIN BOX -->
+<div class="box">
+<h2>Login Sistem</h2>
+<p>Masukkan <b>token XPROMILK</b> yang diberikan admin:</p>
+
+<input id="tokenInput" placeholder="Token XPROMILK">
+<button onclick="login()">Login</button>
+
+<div id="notif"></div>
+
+<p style="margin-top:15px;">Belum punya token?</p>
+
+<div class="admin-help" onclick="openWA()">
+  <img src="xpromilk.jpg" alt="Admin">
+  <span>Hubungi Admin (WhatsApp)</span>
+</div>
+</div>
+
+<!-- FITUR UTAMA -->
+<div class="box">
+<h2>Fitur Utama</h2>
+<ul>
+  <li>Pencatatan ternak penggemukan</li>
+  <li>Catat biaya pakan, obat, kandang</li>
+  <li>Riwayat bobot ternak (tanggal & kg)</li>
+  <li>Jual ternak + hitung profit otomatis</li>
+  <li>Laporan bulanan (PDF / CSV)</li>
+  <li>Akses aman dengan token admin</li>
+</ul>
+</div>
+
+<!-- CARA KERJA -->
+<div class="box">
+<h2>Cara Kerja Web DATA TERNAK</h2>
+<ul>
+  <li>User login menggunakan <b>token (xpromilk)</b> yang diberikan admin.</li>
+  <li>Tambah ternak baru dengan detail lengkap (foto, nama, tanggal masuk, harga beli).</li>
+  <li>Catat semua biaya pakan, obat, kandang, per ternak.</li>
+  <li>Tambahkan bobot ternak dengan tanggal & kg.</li>
+  <li>Jual ternak, sistem otomatis hitung profit/rugi.</li>
+  <li>Buat laporan bulanan PDF/CSV, termasuk grafik pengeluaran vs profit.</li>
+  <li>Token salah muncul notif error dan bisa hubungi admin via WhatsApp.</li>
+</ul>
+</div>
+
+<footer>
+XPROMILK © 2026 – Sistem Peternakan
+</footer>
+</div>
+
+<script>
+// TOKEN XPROMILK
+const token = "xpromilk";
+
+// LOGIN
+function login(){
+  const notif = document.getElementById("notif");
+  const input = document.getElementById("tokenInput").value.trim().toLowerCase();
+  
+  if(input===''){
+    notif.textContent = "Token tidak boleh kosong!";
+    notif.className = "error";
+    notif.style.display = "block";
+    return;
+  }
+  
+  if(input === token){
+    notif.textContent = "Login berhasil! Mengalihkan ke sistem...";
+    notif.className = "success";
+    notif.style.display = "block";
+    setTimeout(()=>{ window.location.href = "main.html"; },1500);
+  }else{
+    notif.textContent = "Token salah. Hubungi admin untuk mendapatkan token.";
+    notif.className = "error";
+    notif.style.display = "block";
+  }
+}
+
+// WHATSAPP ADMIN
+function openWA(){
+  const nomorAdmin = "6281234567890";
+  const pesan = `Halo Admin XPROMILK, Saya ingin minta token login sistem peternakan. Terima kasih.`;
+
+  window.open(
+    `https://wa.me/${nomorAdmin}?text=${encodeURIComponent(pesan)}`,
+    "_blank"
+  );
+}
+</script>
+
+</body>
+</html>
